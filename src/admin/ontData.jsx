@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import AdminSidebar from "../components/adminSidebar";
-import { Plus, Search, Filter, Eye, Pencil, Trash2, MessageCircle, MapPin } from "lucide-react";
-import axios from "axios";
 import * as XLSX from 'xlsx';
+import AdminSidebar from "../components/adminSidebar";
 import Footer from "../components/footer";
-import 'reactjs-popup/dist/index.css';
+import { Plus, Search, Filter, Eye, Pencil, Trash2, MessageCircle, Cross } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import EditOntFull from "../components/editOntFull";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export default function OntData() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,14 +51,53 @@ export default function OntData() {
     }
   }
 
+  const handleDeleteOnt = async (id) => {
+    const result = await Swal.fire({
+      title: 'Yakin ingin menghapus?',
+      text: "Data ont akan dihapus permanen!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, hapus',
+      cancelButtonText: 'Batal',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await axios.delete(`https://backend-dismantle.vercel.app/ont/${id}`);
+        if (response.status === 200) {
+          Swal.fire({
+            toast: true,
+            position: 'bottom-end',
+            icon: 'success',
+            title: 'Ont berhasil dihapus',
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true
+          });
+          getOnt(); 
+        }
+      } catch (error) {
+        console.error("Error deleting ont:", error);
+        Swal.fire({
+          toast: true,
+          position: 'bottom-end',
+          icon: 'error',
+          title: 'Gagal menghapus ont',
+          showConfirmButton: false,
+          timer: 2000
+        });
+      }
+    }
+  };
+
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(filtered);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "DataONT");
     XLSX.writeFile(wb, "Data_ONT.xlsx");
-  };
-
-  const uniqueStatuses = [...new Set(ontList.map((item) => item.status_pd).filter(Boolean))];
+  }; 
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-100 mt-12 sm:mt-0">
@@ -196,7 +243,7 @@ export default function OntData() {
                     </thead>
                     <tbody>
                     {filtered.map((item, idx) => (
-                      <Dialog.Root key={idx}>
+                      <Dialog.Root key={item.id_ont}>
                         <Dialog.Trigger asChild>
                           <tr
                             className={`cursor-pointer text-sm ${
@@ -226,11 +273,13 @@ export default function OntData() {
                             </td>
                             <td className="px-5 py-3 text-gray-800">
                               <div className="flex">
-                                <button className="border cursor-pointer border-yellow-500 rounded-md p-1 text-yellow-600 hover:bg-yellow-500 hover:text-white transition duration-200 ml-2">
-                                  <Pencil size={16} />
-                                </button>
+                                <EditOntFull id={item.id_ont} onSuccess={getOnt}/>
 
-                                <button className="border cursor-pointer border-red-500 rounded-md p-1 text-red-600 hover:bg-red-500 hover:text-white transition duration-200 ml-2">
+                                <button onClick={(e)=>{
+                                    e.stopPropagation()
+                                    handleDeleteOnt(item.id_ont)
+                                  }} 
+                                  className="border cursor-pointer border-red-500 rounded-md p-1 text-red-600 hover:bg-red-500 hover:text-white transition duration-200 ml-2">
                                   <Trash2 size={16} />
                                 </button>
                               </div>
